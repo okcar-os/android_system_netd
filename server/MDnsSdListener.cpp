@@ -284,6 +284,16 @@ void MDnsSdListenerResolveCallback(DNSServiceRef /* sdRef */, DNSServiceFlags /*
 int MDnsSdListener::getAddrInfo(int requestId, uint32_t ifIndex, uint32_t protocol,
                                 const char* hostname) {
     if (VDBG) ALOGD("getAddrInfo(%d, %u %d, %s)", requestId, ifIndex, protocol, hostname);
+
+    std::string modifiedHostname(hostname);
+    const std::string suffix = "__airplay__tcp";
+    
+    if (modifiedHostname.size() >= suffix.size() &&
+        modifiedHostname.compare(modifiedHostname.size() - suffix.size(), suffix.size(), suffix) == 0) {
+        modifiedHostname = modifiedHostname.substr(0, modifiedHostname.size() - suffix.size());
+        protocol = kDNSServiceProtocol_IPv6;
+    }
+
     Context* context = new Context(requestId);
     DNSServiceRef* ref = mMonitor.allocateServiceRef(requestId, context);
     if (ref == nullptr) {
@@ -292,7 +302,7 @@ int MDnsSdListener::getAddrInfo(int requestId, uint32_t ifIndex, uint32_t protoc
     }
     DNSServiceFlags nativeFlags = 0;
     DNSServiceErrorType result =
-            DNSServiceGetAddrInfo(ref, nativeFlags, ifIndex, protocol, hostname,
+            DNSServiceGetAddrInfo(ref, nativeFlags, ifIndex, protocol, modifiedHostname.c_str(),
                                   &MDnsSdListenerGetAddrInfoCallback, context);
     if (result != kDNSServiceErr_NoError) {
         ALOGE("getAddrInfo request %d got an error from DNSServiceGetAddrInfo %d", requestId,
